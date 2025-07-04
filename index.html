@@ -815,32 +815,32 @@
             });
         }
 
-            function downloadSVG(glyphIndex) {
-                const glyph = allGlyphs.find(g => g.index === glyphIndex);
-                if (!glyph || glyph.isEmpty) {
-                    showError('No se puede descargar un glyph vacío');
-                    return;
-                }
-
-                const svgSize = document.getElementById('svgSize').value;
-                const fillColor = document.getElementById('fillColor').value;
-                const exportFormat = document.getElementById('exportFormat').value;
-
-                let filename = getFilename(glyph, exportFormat);
-                const svgContent = generateSVGContent(glyph, svgSize, fillColor);
-
-                const blob = new Blob([svgContent], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-
-                setTimeout(() => URL.revokeObjectURL(url), 100);
+        function downloadSVG(glyphIndex) {
+            const glyph = allGlyphs.find(g => g.index === glyphIndex);
+            if (!glyph || glyph.isEmpty) {
+                showError('No se puede descargar un glyph vacío');
+                return;
             }
+
+            const svgSize = document.getElementById('svgSize').value;
+            const fillColor = document.getElementById('fillColor').value;
+            const exportFormat = document.getElementById('exportFormat').value;
+
+            let filename = getFilename(glyph, exportFormat);
+            const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+
+            const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+        }
 
 
         function showSVGContentModal(filename, svgContent) {
@@ -986,37 +986,37 @@
             }
         }
 
-            function downloadAll() {
-                const nonEmptyGlyphs = filteredGlyphs.filter(glyph => !glyph.isEmpty);
+        function downloadAll() {
+            const nonEmptyGlyphs = filteredGlyphs.filter(glyph => !glyph.isEmpty);
 
-                if (nonEmptyGlyphs.length === 0) {
-                    showError('No hay glyphs con contenido para descargar');
-                    return;
-                }
-
-                const svgSize = document.getElementById('svgSize').value;
-                const fillColor = document.getElementById('fillColor').value;
-                const exportFormat = document.getElementById('exportFormat').value;
-
-                const zip = new JSZip();
-
-                nonEmptyGlyphs.forEach(glyph => {
-                    const filename = sanitizeFilename(getFilename(glyph, exportFormat));
-                    const svgContent = generateSVGContent(glyph, svgSize, fillColor);
-                    zip.file(filename, svgContent);
-                });
-
-                zip.generateAsync({ type: "blob" }).then(function (content) {
-                    const blobUrl = URL.createObjectURL(content);
-                    const a = document.createElement("a");
-                    a.href = blobUrl;
-                    a.download = "glyphs.zip";
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
-                });
+            if (nonEmptyGlyphs.length === 0) {
+                showError('No hay glyphs con contenido para descargar');
+                return;
             }
+
+            const svgSize = document.getElementById('svgSize').value;
+            const fillColor = document.getElementById('fillColor').value;
+            const exportFormat = document.getElementById('exportFormat').value;
+
+            const zip = new JSZip();
+
+            nonEmptyGlyphs.forEach(glyph => {
+                const filename = sanitizeFilename(getFilename(glyph, exportFormat));
+                const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+                zip.file(filename, svgContent);
+            });
+
+            zip.generateAsync({ type: "blob" }).then(function (content) {
+                const blobUrl = URL.createObjectURL(content);
+                const a = document.createElement("a");
+                a.href = blobUrl;
+                a.download = "glyphs.zip";
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
+            });
+        }
 
 
         function showAllSVGContent(glyphs) {
@@ -1344,7 +1344,7 @@ MÉTODO 3: Usar herramientas online
         function generateSVGContent(glyph, svgSize, fillColor) {
             return `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" 
-     viewBox="0 0 ${fontData.unitsPerEm} ${fontData.unitsPerEm}" 
+     viewBox="0 0 550 600"
      width="${svgSize}" 
      height="${svgSize}">
   <!-- Glyph: ${glyph.name} -->
