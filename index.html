@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Convertidor WOFF a SVG</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/opentype.js/1.3.4/opentype.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .upload-section {
+            border: 3px dashed #e5e7eb;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+            background: #f9fafb;
+        }
+
+        .upload-section:hover {
+            border-color: #6366f1;
+            background: #f0f4ff;
+        }
+
+        .upload-section.drag-over {
+            border-color: #6366f1;
+            background: #e0e7ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            color: #6366f1;
+        }
+
+        .upload-input {
+            display: none;
+        }
+
+        .upload-btn {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 15px;
+        }
+
+        .upload-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .file-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .font-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .stat-number {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #6366f1;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+
+        .control-group {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .control-group input,
+        .control-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 6px;
+            font-size: 1rem;
+        }
+
+        .filters {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e2e8f0;
+            margin: 20px 0;
+        }
+
+        .filter-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .filter-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .convert-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
+        }
+
+        .convert-btn.show {
+            display: block;
+        }
+
+        .progress {
+            width: 100%;
+            height: 6px;
+            background: #e5e7eb;
+            border-radius: 3px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress.show {
+            display: block;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .results {
+            margin-top: 30px;
+            display: none;
+        }
+
+        .results.show {
+            display: block;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .results-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #1f2937;
+        }
+
+        .results-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .download-all-btn {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .download-all-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+        }
+
+        .reset-btn {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+
+        .glyph-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+
+        .glyph-card {
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .glyph-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .glyph-card.empty {
+            opacity: 0.3;
+            border-style: dashed;
+        }
+
+        .glyph-preview {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            overflow: hidden;
+        }
+
+        .glyph-preview svg {
+            max-width: 70px;
+            max-height: 70px;
+        }
+
+        .glyph-info {
+            margin-bottom: 15px;
+        }
+
+        .glyph-name {
+            font-weight: 600;
+            color: #1f2937;
+            margin-bottom: 5px;
+            font-size: 0.9rem;
+            word-break: break-all;
+        }
+
+        .glyph-unicode {
+            font-size: 0.8rem;
+            color: #6b7280;
+            font-family: 'Courier New', monospace;
+        }
+
+        .glyph-index {
+            font-size: 0.7rem;
+            color: #9ca3af;
+            margin-top: 3px;
+        }
+
+        .download-btn {
+            background: #6366f1;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .download-btn:hover {
+            background: #4f46e5;
+            transform: translateY(-1px);
+        }
+
+        .download-btn:disabled {
+            background: #d1d5db;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #dc2626;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #e5e7eb;
+            border-radius: 50%;
+            border-top-color: #6366f1;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .glyph-grid {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 15px;
+            }
+
+            .filter-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎨 Convertidor WOFF a SVG</h1>
+            <p>Convierte fuentes de iconos WOFF a archivos SVG individuales usando OpenType.js</p>
+        </div>
+
+        <div class="main-content">
+            <div class="upload-section" id="uploadSection">
+                <div class="upload-icon">📁</div>
+                <h3>Arrastra tu archivo WOFF aquí</h3>
+                <p>o haz clic para seleccionar un archivo</p>
+                <input type="file" id="fileInput" class="upload-input" accept=".woff,.woff2,.ttf,.otf">
+                <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+                    Seleccionar Archivo
+                </button>
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <h3>📄 Información del Archivo</h3>
+                <p id="fileName"></p>
+                <p id="fileSize"></p>
+                <div class="font-stats" id="fontStats"></div>
+            </div>
+
+            <div class="controls">
+                <div class="control-group">
+                    <label for="svgSize">Tamaño SVG (px)</label>
+                    <input type="number" id="svgSize" value="56" min="16" max="512">
+                </div>
+                <div class="control-group">
+                    <label for="fillColor">Color de relleno</label>
+                    <select id="fillColor">
+                        <option value="currentColor">currentColor (por defecto)</option>
+                        <option value="#000000">Negro</option>
+                        <option value="#ffffff">Blanco</option>
+                        <option value="#6366f1">Azul</option>
+                        <option value="#10b981">Verde</option>
+                        <option value="#f59e0b">Amarillo</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="exportFormat">Formato de nombre</label>
+                    <select id="exportFormat">
+                        <option value="name_unicode">nombre_U1234</option>
+                        <option value="name_only">solo nombre</option>
+                        <option value="unicode_only">solo U1234</option>
+                        <option value="index_name">index_nombre</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="filters" id="filters" style="display: none;">
+                <h4 style="margin-bottom: 15px;">🔍 Filtros y Búsqueda</h4>
+                <div class="filter-row">
+                    <div class="search-box">
+                        <input type="text" id="searchInput" placeholder="Buscar por nombre de glyph..."
+                            style="width: 100%; padding: 10px; border: 1px solid #d1d5db; border-radius: 6px;">
+                    </div>
+                    <div class="filter-group">
+                        <input type="checkbox" id="showWithUnicode" checked>
+                        <label for="showWithUnicode">Con Unicode</label>
+                    </div>
+                    <div class="filter-group">
+                        <input type="checkbox" id="showWithoutUnicode" checked>
+                        <label for="showWithoutUnicode">Sin Unicode</label>
+                    </div>
+                    <div class="filter-group">
+                        <input type="checkbox" id="showEmpty">
+                        <label for="showEmpty">Vacíos</label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="convert-btn" id="convertBtn" onclick="convertFont()">
+                🔄 Analizar y Convertir Fuente
+            </button>
+
+            <div class="progress" id="progress">
+                <div class="progress-bar" id="progressBar"></div>
+            </div>
+
+            <div class="error" id="error"></div>
+
+            <div class="results" id="results">
+                <div class="results-header">
+                    <h3 class="results-title">✅ Glyphs Encontrados</h3>
+                    <div class="results-actions">
+                        <button class="download-all-btn" onclick="downloadAll()">
+                            📦 Descargar Todos
+                        </button>
+                        <button class="download-all-btn reset-btn" onclick="resetApp()">
+                            🔄 Reiniciar
+                        </button>
+                    </div>
+                </div>
+                <div id="resultsInfo" style="margin-bottom: 20px; color: #6b7280;"></div>
+                <div class="glyph-grid" id="glyphGrid"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentFont = null;
+        let allGlyphs = [];
+        let filteredGlyphs = [];
+        let fontData = null;
+
+        // Configurar drag & drop
+        const uploadSection = document.getElementById('uploadSection');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadSection.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadSection.classList.add('drag-over');
+        });
+
+        uploadSection.addEventListener('dragleave', () => {
+            uploadSection.classList.remove('drag-over');
+        });
+
+        uploadSection.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadSection.classList.remove('drag-over');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        uploadSection.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        // Event listeners para filtros
+        document.getElementById('searchInput').addEventListener('input', applyFilters);
+        document.getElementById('showWithUnicode').addEventListener('change', applyFilters);
+        document.getElementById('showWithoutUnicode').addEventListener('change', applyFilters);
+        document.getElementById('showEmpty').addEventListener('change', applyFilters);
+
+        async function handleFileSelect(file) {
+            const validExtensions = ['.woff', '.woff2', '.ttf', '.otf'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+
+            if (!validExtensions.includes(fileExtension)) {
+                showError('Por favor selecciona un archivo de fuente válido (.woff, .woff2, .ttf, .otf)');
+                return;
+            }
+
+            const fileInfo = document.getElementById('fileInfo');
+            const fileName = document.getElementById('fileName');
+            const fileSize = document.getElementById('fileSize');
+            const convertBtn = document.getElementById('convertBtn');
+
+            fileName.textContent = `Archivo: ${file.name}`;
+            fileSize.textContent = `Tamaño: ${(file.size / 1024).toFixed(2)} KB`;
+
+            fileInfo.classList.add('show');
+            convertBtn.classList.add('show');
+
+            currentFont = file;
+            hideError();
+
+            // Limpiar resultados anteriores
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('filters').style.display = 'none';
+        }
+
+        async function convertFont() {
+            if (!currentFont) {
+                showError('Por favor selecciona un archivo de fuente primero');
+                return;
+            }
+
+            const progress = document.getElementById('progress');
+            const progressBar = document.getElementById('progressBar');
+            const results = document.getElementById('results');
+            const fontStats = document.getElementById('fontStats');
+
+            progress.classList.add('show');
+            progressBar.style.width = '10%';
+
+            try {
+                // Leer el archivo
+                const arrayBuffer = await currentFont.arrayBuffer();
+                progressBar.style.width = '30%';
+
+                // Cargar la fuente con OpenType.js
+                fontData = opentype.parse(arrayBuffer);
+                progressBar.style.width = '60%';
+
+                // Procesar todos los glyphs
+                await processAllGlyphs();
+                progressBar.style.width = '90%';
+
+                // Mostrar estadísticas de la fuente
+                displayFontStats();
+                progressBar.style.width = '100%';
+
+                setTimeout(() => {
+                    progress.classList.remove('show');
+                    results.classList.add('show');
+                    document.getElementById('filters').style.display = 'block';
+                    applyFilters();
+                }, 500);
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Error al procesar la fuente: ' + error.message);
+                progress.classList.remove('show');
+            }
+        }
+
+        async function processAllGlyphs() {
+            allGlyphs = [];
+
+            // Obtener información del cmap (mapeo Unicode)
+            const cmap = fontData.encoding.cmap;
+
+            // Procesar cada glyph en la fuente
+            for (let i = 0; i < fontData.glyphs.length; i++) {
+                const glyph = fontData.glyphs.glyphs[i];
+
+                // Obtener código Unicode si existe
+                let unicodeCode = null;
+                for (const [code, glyphIndex] of Object.entries(cmap)) {
+                    if (parseInt(glyphIndex) === i) {
+                        unicodeCode = parseInt(code);
+                        break;
+                    }
+                }
+
+                // Generar path SVG
+                let svgPath = '';
+                let isEmpty = true;
+
+                if (glyph.path && glyph.path.commands && glyph.path.commands.length > 0) {
+                    svgPath = glyph.path.toSVG(2);
+                    // Extraer solo el path del SVG
+                    const pathMatch = svgPath.match(/d="([^"]+)"/);
+                    if (pathMatch) {
+                        svgPath = pathMatch[1];
+                        isEmpty = !svgPath || svgPath.trim() === '';
+                    }
+                }
+
+                const glyphInfo = {
+                    index: i,
+                    name: glyph.name || `glyph${i}`,
+                    unicode: unicodeCode,
+                    unicodeString: unicodeCode ? `U+${unicodeCode.toString(16).toUpperCase().padStart(4, '0')}` : null,
+                    svgPath: svgPath,
+                    isEmpty: isEmpty,
+                    advanceWidth: glyph.advanceWidth || 0
+                };
+
+                allGlyphs.push(glyphInfo);
+            }
+        }
+
+        function displayFontStats() {
+            const fontStats = document.getElementById('fontStats');
+
+            const totalGlyphs = allGlyphs.length;
+            const withUnicode = allGlyphs.filter(g => g.unicode !== null).length;
+            const withoutUnicode = totalGlyphs - withUnicode;
+            const nonEmpty = allGlyphs.filter(g => !g.isEmpty).length;
+            const empty = totalGlyphs - nonEmpty;
+
+            fontStats.innerHTML = `
+                <div class="stat-item">
+                    <div class="stat-number">${totalGlyphs}</div>
+                    <div class="stat-label">Total Glyphs</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${nonEmpty}</div>
+                    <div class="stat-label">Con Contenido</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${withUnicode}</div>
+                    <div class="stat-label">Con Unicode</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${withoutUnicode}</div>
+                    <div class="stat-label">Sin Unicode</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-number">${fontData.names.fontFamily.en || 'N/A'}</div>
+                    <div class="stat-label">Familia</div>
+                </div>
+            `;
+        }
+
+        function applyFilters() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const showWithUnicode = document.getElementById('showWithUnicode').checked;
+            const showWithoutUnicode = document.getElementById('showWithoutUnicode').checked;
+            const showEmpty = document.getElementById('showEmpty').checked;
+
+            filteredGlyphs = allGlyphs.filter(glyph => {
+                // Filtro de búsqueda
+                const matchesSearch = !searchTerm ||
+                    glyph.name.toLowerCase().includes(searchTerm) ||
+                    (glyph.unicodeString && glyph.unicodeString.toLowerCase().includes(searchTerm));
+
+                // Filtros de tipo
+                const hasUnicode = glyph.unicode !== null;
+                const matchesUnicodeFilter = (hasUnicode && showWithUnicode) || (!hasUnicode && showWithoutUnicode);
+
+                // Filtro de contenido
+                const matchesContentFilter = showEmpty || !glyph.isEmpty;
+
+                return matchesSearch && matchesUnicodeFilter && matchesContentFilter;
+            });
+
+            displayResults();
+        }
+
+        function displayResults() {
+            const glyphGrid = document.getElementById('glyphGrid');
+            const resultsInfo = document.getElementById('resultsInfo');
+            const svgSize = document.getElementById('svgSize').value;
+            const fillColor = document.getElementById('fillColor').value;
+
+            resultsInfo.textContent = `Mostrando ${filteredGlyphs.length} de ${allGlyphs.length} glyphs`;
+            glyphGrid.innerHTML = '';
+
+            if (filteredGlyphs.length === 0) {
+                glyphGrid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #6b7280;">No se encontraron glyphs con los filtros actuales</div>';
+                return;
+            }
+
+            filteredGlyphs.forEach((glyph, index) => {
+                const card = document.createElement('div');
+                card.className = `glyph-card ${glyph.isEmpty ? 'empty' : ''}`;
+
+                let previewContent = '';
+                if (!glyph.isEmpty && glyph.svgPath) {
+                    previewContent = `
+                        <svg width="60" height="60" viewBox="0 0 ${fontData.unitsPerEm} ${fontData.unitsPerEm}" fill="${fillColor}">
+                            <g transform="scale(1,-1) translate(0,-${fontData.unitsPerEm})">
+                                <path d="${glyph.svgPath}"/>
+                            </g>
+                        </svg>
+                    `;
+                } else {
+                    previewContent = '<span style="color: #d1d5db; font-size: 1rem;">Vacío</span>';
+                }
+
+                card.innerHTML = `
+                    <div class="glyph-preview">${previewContent}</div>
+                    <div class="glyph-info">
+                        <div class="glyph-name">${glyph.name}</div>
+                        <div class="glyph-unicode">${glyph.unicodeString || 'Sin Unicode'}</div>
+                        <div class="glyph-index">Índice: ${glyph.index}</div>
+                    </div>
+                    <button class="download-btn" onclick="downloadSVG(${glyph.index})" ${glyph.isEmpty ? 'disabled' : ''}>
+                        ${glyph.isEmpty ? '❌ Vacío' : '💾 Descargar SVG'}
+                    </button>
+                `;
+
+                glyphGrid.appendChild(card);
+            });
+        }
+
+            function downloadSVG(glyphIndex) {
+                const glyph = allGlyphs.find(g => g.index === glyphIndex);
+                if (!glyph || glyph.isEmpty) {
+                    showError('No se puede descargar un glyph vacío');
+                    return;
+                }
+
+                const svgSize = document.getElementById('svgSize').value;
+                const fillColor = document.getElementById('fillColor').value;
+                const exportFormat = document.getElementById('exportFormat').value;
+
+                let filename = getFilename(glyph, exportFormat);
+                const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+
+                const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+
+                setTimeout(() => URL.revokeObjectURL(url), 100);
+            }
+
+
+        function showSVGContentModal(filename, svgContent) {
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 1000; padding: 20px; box-sizing: border-box;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 15px; width: 90%; max-width: 600px; max-height: 80%; display: flex; flex-direction: column;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                        <h3 style="margin: 0 0 10px 0; color: #1f2937;">📄 ${filename}</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                            <button onclick="copySVGContent()" 
+                                    style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                📋 Copiar SVG
+                            </button>
+                            <button onclick="selectSVGContent()" 
+                                    style="background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                ✂️ Seleccionar Todo
+                            </button>
+                            <button onclick="downloadSVGForced()" 
+                                    style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                💾 Forzar Descarga
+                            </button>
+                            <button onclick="closeSVGModal()" 
+                                    style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                ❌ Cerrar
+                            </button>
+                        </div>
+                        <p style="margin: 10px 0 0 0; font-size: 0.8rem; color: #6b7280;">
+                            💡 Copia este contenido y pégalo en un archivo .svg, o usa el botón "Forzar Descarga"
+                        </p>
+                    </div>
+                    <div style="flex: 1; padding: 20px; overflow: hidden;">
+                        <textarea id="svgContentTextarea" 
+                                style="width: 100%; height: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 0.8rem; resize: none; outline: none;"
+                                readonly>${svgContent}</textarea>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            window.currentSVGModal = modal;
+            window.currentSVGContent = svgContent;
+            window.currentSVGFilename = filename;
+        }
+
+        function copySVGContent() {
+            const textarea = document.getElementById('svgContentTextarea');
+            textarea.select();
+
+            try {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(textarea.value).then(() => {
+                        showError('✅ SVG copiado al portapapeles', 'success');
+                    });
+                } else {
+                    document.execCommand('copy');
+                    showError('✅ SVG copiado al portapapeles', 'success');
+                }
+            } catch (err) {
+                showError('Error al copiar. Usa Ctrl+A y Ctrl+C manualmente', 'info');
+            }
+        }
+
+        function selectSVGContent() {
+            const textarea = document.getElementById('svgContentTextarea');
+            textarea.focus();
+            textarea.select();
+            showError('📝 Contenido seleccionado. Presiona Ctrl+C para copiar', 'info');
+        }
+
+        function downloadSVGForced() {
+            // Método más agresivo para forzar descarga
+            const content = window.currentSVGContent;
+            const filename = window.currentSVGFilename;
+
+            // Crear múltiples intentos de descarga
+            const methods = [
+                () => {
+                    // Método 1: Blob URL con click simulado
+                    const blob = new Blob([content], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                },
+                () => {
+                    // Método 2: Data URL
+                    const dataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(content);
+                    const a = document.createElement('a');
+                    a.href = dataUrl;
+                    a.download = filename;
+                    a.click();
+                },
+                () => {
+                    // Método 3: Abrir en nueva ventana
+                    const blob = new Blob([content], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+                    const newWindow = window.open(url, '_blank');
+                    if (newWindow) {
+                        setTimeout(() => {
+                            newWindow.document.title = filename;
+                        }, 100);
+                    }
+                }
+            ];
+
+            // Probar métodos secuencialmente
+            methods.forEach((method, index) => {
+                setTimeout(() => {
+                    try {
+                        method();
+                        if (index === 0) {
+                            showError('🚀 Intentando descarga...', 'info');
+                        }
+                    } catch (e) {
+                        console.log(`Método ${index + 1} falló:`, e);
+                    }
+                }, index * 200);
+            });
+
+            // Mensaje final
+            setTimeout(() => {
+                showError('Si no funcionó, copia el contenido manualmente y guárdalo como .svg', 'info');
+            }, 1000);
+        }
+
+        function closeSVGModal() {
+            if (window.currentSVGModal) {
+                document.body.removeChild(window.currentSVGModal);
+                window.currentSVGModal = null;
+                window.currentSVGContent = null;
+                window.currentSVGFilename = null;
+            }
+        }
+
+            function downloadAll() {
+                const nonEmptyGlyphs = filteredGlyphs.filter(glyph => !glyph.isEmpty);
+
+                if (nonEmptyGlyphs.length === 0) {
+                    showError('No hay glyphs con contenido para descargar');
+                    return;
+                }
+
+                const svgSize = document.getElementById('svgSize').value;
+                const fillColor = document.getElementById('fillColor').value;
+                const exportFormat = document.getElementById('exportFormat').value;
+
+                const zip = new JSZip();
+
+                nonEmptyGlyphs.forEach(glyph => {
+                    const filename = sanitizeFilename(getFilename(glyph, exportFormat));
+                    const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+                    zip.file(filename, svgContent);
+                });
+
+                zip.generateAsync({ type: "blob" }).then(function (content) {
+                    const blobUrl = URL.createObjectURL(content);
+                    const a = document.createElement("a");
+                    a.href = blobUrl;
+                    a.download = "glyphs.zip";
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(blobUrl), 500);
+                });
+            }
+
+
+        function showAllSVGContent(glyphs) {
+            const svgSize = document.getElementById('svgSize').value;
+            const fillColor = document.getElementById('fillColor').value;
+            const exportFormat = document.getElementById('exportFormat').value;
+
+            // Crear contenido completo
+            let allContent = '';
+            let indexContent = `# Índice de Iconos SVG\n\nTotal: ${glyphs.length} iconos\nFuente: ${fontData.names.fontFamily?.en || 'Desconocida'}\nFecha: ${new Date().toLocaleString()}\n\n`;
+
+            glyphs.forEach((glyph, index) => {
+                if (!glyph.isEmpty && glyph.svgPath) {
+                    const filename = sanitizeFilename(getFilename(glyph, exportFormat));
+                    const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+
+                    allContent += `${'='.repeat(80)}\n`;
+                    allContent += `ARCHIVO: ${filename}\n`;
+                    allContent += `${'='.repeat(80)}\n`;
+                    allContent += `${svgContent}\n\n`;
+
+                    indexContent += `${index + 1}. ${filename} - ${glyph.name} ${glyph.unicodeString || ''}\n`;
+                }
+            });
+
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); display: flex; align-items: center; justify-content: center;
+                z-index: 1000; padding: 20px; box-sizing: border-box;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: white; border-radius: 15px; width: 95%; height: 95%; display: flex; flex-direction: column;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                        <h3 style="margin: 0 0 15px 0; color: #1f2937;">📄 ${glyphs.length} Iconos SVG Listos</h3>
+                        <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                            <button onclick="copyAllContent()" 
+                                    style="background: #10b981; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                📋 Copiar Todo
+                            </button>
+                            <button onclick="selectAllContent()" 
+                                    style="background: #6366f1; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                ✂️ Seleccionar Todo
+                            </button>
+                            <button onclick="showInstructions()" 
+                                    style="background: #8b5cf6; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                📖 Instrucciones
+                            </button>
+                            <button onclick="showIndexView()" 
+                                    style="background: #f59e0b; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                📑 Ver Índice
+                            </button>
+                            <button onclick="closeContentModal()" 
+                                    style="background: #ef4444; color: white; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-size: 0.9rem;">
+                                ❌ Cerrar
+                            </button>
+                        </div>
+                        <div style="background: #e0f2fe; padding: 10px; border-radius: 6px; font-size: 0.8rem; color: #0f172a;">
+                            <strong>💡 Cómo usar:</strong> 
+                            1) Copia todo el contenido, 
+                            2) Pégalo en un editor de texto, 
+                            3) Busca cada bloque que empiece con "ARCHIVO:", 
+                            4) Copia el código SVG y guárdalo con el nombre indicado
+                        </div>
+                    </div>
+                    <div style="flex: 1; padding: 20px; overflow: hidden;">
+                        <textarea id="allSVGContent" 
+                                style="width: 100%; height: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 0.7rem; resize: none; outline: none; line-height: 1.4;"
+                                readonly>${allContent}</textarea>
+                        <div id="indexView" style="width: 100%; height: 100%; border: 1px solid #d1d5db; border-radius: 8px; padding: 15px; font-family: 'Courier New', monospace; font-size: 0.8rem; overflow-y: auto; display: none; background: #f8fafc;">
+                            <pre style="margin: 0; white-space: pre-wrap;">${indexContent}</pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            window.currentContentModal = modal;
+            window.allSVGContentText = allContent;
+            window.indexContentText = indexContent;
+        }
+
+        function showInstructions() {
+            const instructions = `
+INSTRUCCIONES PARA USAR LOS ICONOS SVG
+=====================================
+
+MÉTODO 1: Manual (Más fácil)
+1. Copia todo el contenido de esta ventana
+2. Pégalo en un editor de texto (Notepad, VS Code, etc.)
+3. Busca cada sección que empiece con "ARCHIVO: nombre.svg"
+4. Copia el código SVG (desde <?xml hasta </svg>)
+5. Pega en un archivo nuevo y guárdalo con extensión .svg
+
+MÉTODO 2: Automático con script
+1. Copia el contenido
+2. Guárdalo como "iconos.txt"
+3. Usa este script de Python para separar:
+
+import re
+import os
+
+with open('iconos.txt', 'r', encoding='utf-8') as f:
+    content = f.read()
+
+# Encontrar todos los archivos
+blocks = re.findall(r'ARCHIVO: ([^\\n]+)\\n={80}\\n(.*?)(?=\\n={80}|$)', content, re.DOTALL)
+
+for filename, svg_content in blocks:
+    filename = filename.strip()
+    svg_content = svg_content.strip()
+    
+    with open(filename, 'w', encoding='utf-8') as f:
+        f.write(svg_content)
+    print(f"Creado: {filename}")
+
+MÉTODO 3: Usar herramientas online
+- Pega el contenido SVG en https://svgomg.net/ para optimizar
+- Usa editores online como CodePen para probar los SVG
+
+¡Que disfrutes tus iconos! 🎨
+            `;
+
+            const instructionsModal = document.createElement('div');
+            instructionsModal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 1001; padding: 20px; box-sizing: border-box;
+            `;
+
+            instructionsModal.innerHTML = `
+                <div style="background: white; border-radius: 15px; width: 90%; max-width: 800px; max-height: 90%; display: flex; flex-direction: column;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                        <h3 style="margin: 0; color: #1f2937;">📖 Instrucciones de Uso</h3>
+                    </div>
+                    <div style="flex: 1; padding: 20px; overflow-y: auto;">
+                        <pre style="white-space: pre-wrap; font-family: 'Courier New', monospace; font-size: 0.8rem; line-height: 1.5; margin: 0;">${instructions}</pre>
+                    </div>
+                    <div style="padding: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                        <button onclick="closeInstructionsModal()" 
+                                style="background: #6366f1; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                            Entendido
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(instructionsModal);
+            window.currentInstructionsModal = instructionsModal;
+        }
+
+        function showIndexView() {
+            const contentTextarea = document.getElementById('allSVGContent');
+            const indexView = document.getElementById('indexView');
+
+            if (contentTextarea.style.display === 'none') {
+                contentTextarea.style.display = 'block';
+                indexView.style.display = 'none';
+            } else {
+                contentTextarea.style.display = 'none';
+                indexView.style.display = 'block';
+            }
+        }
+
+        function closeInstructionsModal() {
+            if (window.currentInstructionsModal) {
+                document.body.removeChild(window.currentInstructionsModal);
+                window.currentInstructionsModal = null;
+            }
+        }
+
+        function copyAllContent() {
+            const textarea = document.getElementById('allSVGContent');
+            textarea.select();
+
+            try {
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(textarea.value).then(() => {
+                        showError('✅ Contenido copiado al portapapeles', 'success');
+                    });
+                } else {
+                    document.execCommand('copy');
+                    showError('✅ Contenido copiado al portapapeles', 'success');
+                }
+            } catch (err) {
+                showError('Error al copiar. Usa Ctrl+A y Ctrl+C manualmente', 'info');
+            }
+        }
+
+        function selectAllContent() {
+            const textarea = document.getElementById('allSVGContent');
+            textarea.focus();
+            textarea.select();
+            showError('📝 Contenido seleccionado. Presiona Ctrl+C para copiar', 'info');
+        }
+
+        function downloadAsTextFile() {
+            const content = window.allSVGContentText;
+            const blob = new Blob([content], { type: 'text/plain' });
+
+            // Crear URL del blob
+            const url = URL.createObjectURL(blob);
+            const filename = `iconos_svg_${fontData.names.fontFamily?.en || 'fuente'}_${new Date().toISOString().slice(0, 10)}.txt`;
+
+            // Mostrar link de descarga manual
+            const linkDiv = document.createElement('div');
+            linkDiv.style.cssText = `
+                position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+                z-index: 1002; max-width: 500px; text-align: center;
+            `;
+
+            linkDiv.innerHTML = `
+                <h4 style="margin-bottom: 15px;">💾 Descargar Archivo</h4>
+                <p style="margin-bottom: 20px; color: #6b7280;">Haz clic derecho en el enlace y selecciona "Guardar enlace como..." o "Descargar"</p>
+                <a href="${url}" download="${filename}" 
+                   style="display: inline-block; background: #10b981; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; font-weight: 600; margin-bottom: 15px;">
+                    📄 ${filename}
+                </a>
+                <br>
+                <button onclick="closeLinkDiv(); URL.revokeObjectURL('${url}')" 
+                        style="background: #e5e7eb; color: #374151; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer;">
+                    Cerrar
+                </button>
+            `;
+
+            document.body.appendChild(linkDiv);
+            window.currentLinkDiv = linkDiv;
+        }
+
+        function closeLinkDiv() {
+            if (window.currentLinkDiv) {
+                document.body.removeChild(window.currentLinkDiv);
+                window.currentLinkDiv = null;
+            }
+        }
+
+        function showIndividualLinks() {
+            const glyphs = window.currentGlyphsForDownload;
+            const svgSize = document.getElementById('svgSize').value;
+            const fillColor = document.getElementById('fillColor').value;
+            const exportFormat = document.getElementById('exportFormat').value;
+
+            let linksHTML = '';
+            glyphs.forEach((glyph, index) => {
+                if (!glyph.isEmpty && glyph.svgPath) {
+                    const filename = sanitizeFilename(getFilename(glyph, exportFormat));
+                    const svgContent = generateSVGContent(glyph, svgSize, fillColor);
+                    const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                    const url = URL.createObjectURL(blob);
+
+                    linksHTML += `
+                        <div style="display: flex; align-items: center; padding: 8px; border-bottom: 1px solid #e5e7eb;">
+                            <span style="flex: 1; font-size: 0.9rem;">${filename}</span>
+                            <a href="${url}" download="${filename}" 
+                               style="background: #6366f1; color: white; padding: 4px 12px; text-decoration: none; border-radius: 4px; font-size: 0.8rem;">
+                                💾 Descargar
+                            </a>
+                        </div>
+                    `;
+                }
+            });
+
+            const linksModal = document.createElement('div');
+            linksModal.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.8); display: flex; align-items: center; justify-content: center;
+                z-index: 1003; padding: 20px; box-sizing: border-box;
+            `;
+
+            linksModal.innerHTML = `
+                <div style="background: white; border-radius: 15px; width: 90%; max-width: 600px; max-height: 80%; display: flex; flex-direction: column;">
+                    <div style="padding: 20px; border-bottom: 1px solid #e5e7eb;">
+                        <h4 style="margin: 0 0 10px 0;">🔗 Enlaces de Descarga Individual</h4>
+                        <p style="margin: 0; font-size: 0.9rem; color: #6b7280;">
+                            Haz clic derecho en cada enlace y selecciona "Guardar enlace como..."
+                        </p>
+                    </div>
+                    <div style="flex: 1; overflow-y: auto; padding: 10px 20px;">
+                        ${linksHTML}
+                    </div>
+                    <div style="padding: 20px; border-top: 1px solid #e5e7eb; text-align: center;">
+                        <button onclick="closeLinksModal()" 
+                                style="background: #ef4444; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                            Cerrar
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(linksModal);
+            window.currentLinksModal = linksModal;
+        }
+
+        function closeLinksModal() {
+            if (window.currentLinksModal) {
+                document.body.removeChild(window.currentLinksModal);
+                window.currentLinksModal = null;
+            }
+        }
+
+        function closeContentModal() {
+            if (window.currentContentModal) {
+                document.body.removeChild(window.currentContentModal);
+                window.currentContentModal = null;
+            }
+        }
+
+        function getFilename(glyph, exportFormat) {
+            switch (exportFormat) {
+                case 'name_unicode':
+                    return `${glyph.name}${glyph.unicodeString ? '_' + glyph.unicodeString.replace('+', '') : ''}.svg`;
+                case 'name_only':
+                    return `${glyph.name}.svg`;
+                case 'unicode_only':
+                    return `${glyph.unicodeString ? glyph.unicodeString.replace('+', '') : glyph.name}.svg`;
+                case 'index_name':
+                    return `${glyph.index}_${glyph.name}.svg`;
+                default:
+                    return `${glyph.name}.svg`;
+            }
+        }
+
+        function generateSVGContent(glyph, svgSize, fillColor) {
+            return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" 
+     viewBox="0 0 ${fontData.unitsPerEm} ${fontData.unitsPerEm}" 
+     width="${svgSize}" 
+     height="${svgSize}">
+  <!-- Glyph: ${glyph.name} -->
+  <!-- Unicode: ${glyph.unicodeString || 'N/A'} -->
+  <!-- Index: ${glyph.index} -->
+  <g transform="scale(1,-1) translate(0,-${fontData.unitsPerEm})">
+    <path d="${glyph.svgPath}" fill="${fillColor}"/>
+  </g>
+</svg>`;
+        }
+
+        function showError(message, type = 'error') {
+            const error = document.getElementById('error');
+
+            // Cambiar estilos según el tipo
+            if (type === 'success') {
+                error.style.background = '#d1fae5';
+                error.style.color = '#065f46';
+                error.style.border = '1px solid #10b981';
+            } else if (type === 'info') {
+                error.style.background = '#dbeafe';
+                error.style.color = '#1e40af';
+                error.style.border = '1px solid #3b82f6';
+            } else {
+                error.style.background = '#fee2e2';
+                error.style.color = '#dc2626';
+                error.style.border = '1px solid #ef4444';
+            }
+
+            error.textContent = message;
+            error.classList.add('show');
+
+            // Auto-ocultar después de 5 segundos (excepto errores)
+            if (type !== 'error') {
+                setTimeout(() => {
+                    error.classList.remove('show');
+                }, 5000);
+            }
+        }
+
+        function hideError() {
+            const error = document.getElementById('error');
+            error.classList.remove('show');
+        }
+
+        function resetApp() {
+            // Limpiar variables
+            currentFont = null;
+            allGlyphs = [];
+            filteredGlyphs = [];
+            fontData = null;
+
+            // Resetear el input de archivo
+            document.getElementById('fileInput').value = '';
+
+            // Ocultar elementos
+            document.getElementById('fileInfo').classList.remove('show');
+            document.getElementById('convertBtn').classList.remove('show');
+            document.getElementById('progress').classList.remove('show');
+            document.getElementById('results').classList.remove('show');
+            document.getElementById('filters').style.display = 'none';
+
+            // Limpiar contenido
+            document.getElementById('glyphGrid').innerHTML = '';
+            document.getElementById('fontStats').innerHTML = '';
+            document.getElementById('resultsInfo').textContent = '';
+
+            // Resetear barra de progreso
+            document.getElementById('progressBar').style.width = '0%';
+
+            // Ocultar errores
+            hideError();
+
+            // Resetear controles a valores por defecto
+            document.getElementById('svgSize').value = '56';
+            document.getElementById('fillColor').value = 'currentColor';
+            document.getElementById('exportFormat').value = 'name_unicode';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('showWithUnicode').checked = true;
+            document.getElementById('showWithoutUnicode').checked = true;
+            document.getElementById('showEmpty').checked = false;
+
+            // Remover clase drag-over si existe
+            document.getElementById('uploadSection').classList.remove('drag-over');
+        }
+
+        // Función de utilidad para formatear nombres de archivo seguros
+        function sanitizeFilename(filename) {
+            return filename.replace(/[^a-zA-Z0-9_\-\.]/g, '_');
+        }
+
+        // Función para exportar información de la fuente como JSON
+        function exportFontInfo() {
+            if (!fontData || allGlyphs.length === 0) {
+                showError('No hay información de fuente para exportar');
+                return;
+            }
+
+            const fontInfo = {
+                fontFamily: fontData.names.fontFamily?.en || 'Unknown',
+                version: fontData.names.version?.en || 'Unknown',
+                unitsPerEm: fontData.unitsPerEm,
+                totalGlyphs: allGlyphs.length,
+                glyphsWithUnicode: allGlyphs.filter(g => g.unicode !== null).length,
+                glyphsWithContent: allGlyphs.filter(g => !g.isEmpty).length,
+                glyphs: allGlyphs.map(g => ({
+                    index: g.index,
+                    name: g.name,
+                    unicode: g.unicodeString,
+                    hasContent: !g.isEmpty,
+                    advanceWidth: g.advanceWidth
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(fontInfo, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${sanitizeFilename(fontInfo.fontFamily)}_info.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        // Atajos de teclado útiles
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + O para abrir archivo
+            if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+                e.preventDefault();
+                document.getElementById('fileInput').click();
+            }
+
+            // Escape para limpiar búsqueda
+            if (e.key === 'Escape') {
+                document.getElementById('searchInput').value = '';
+                applyFilters();
+            }
+        });
+
+        // Mostrar tooltips informativos
+        function initTooltips() {
+            const tooltips = {
+                'svgSize': 'Tamaño en píxeles de los archivos SVG generados',
+                'fillColor': 'Color de relleno para los iconos. "currentColor" se adapta al color del texto',
+                'exportFormat': 'Formato para los nombres de archivo de los SVG exportados',
+                'showEmpty': 'Mostrar glyphs que no tienen contenido visual (espacios, etc.)'
+            };
+
+            Object.entries(tooltips).forEach(([id, text]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.title = text;
+                }
+            });
+        }
+
+        // Inicializar tooltips cuando se carga la página
+        document.addEventListener('DOMContentLoaded', initTooltips);
+    </script>
+</body>
+
+</html>
